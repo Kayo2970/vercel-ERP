@@ -1,0 +1,908 @@
+<title>LEADS Dashboard Architecture</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --surface-2: #e4e8ee;
+    --border: #ccd3dd;
+    --ink: #1a2230;
+    --ink-muted: #566072;
+    --ink-faint: #838da0;
+    --accent: #b5601f;
+    --accent-ink: #ffffff;
+    --accent-soft: #f3e1cd;
+    --ok: #1f7a52;
+    --ok-soft: #d9efe4;
+    --warn: #b5601f;
+    --warn-soft: #f3e1cd;
+    --bad: #b0362f;
+    --bad-soft: #f6dcda;
+    --info: #2f5fa8;
+    --info-soft: #dde7f6;
+    --grid-line: rgba(26, 34, 48, 0.06);
+    --shadow: 0 1px 2px rgba(20, 26, 38, 0.06), 0 8px 24px -12px rgba(20, 26, 38, 0.18);
+    --radius: 10px;
+    --font-display: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b;
+      --surface: #1a1f28;
+      --surface-2: #212836;
+      --border: #323c4d;
+      --ink: #e7eaf1;
+      --ink-muted: #a3acbe;
+      --ink-faint: #6f7890;
+      --accent: #e2914f;
+      --accent-ink: #1a1006;
+      --accent-soft: #3a2a17;
+      --ok: #4fb98a;
+      --ok-soft: #123a2c;
+      --warn: #e2914f;
+      --warn-soft: #3a2a17;
+      --bad: #e17b73;
+      --bad-soft: #3d2020;
+      --info: #7ea6e6;
+      --info-soft: #1c2c46;
+      --grid-line: rgba(231, 234, 241, 0.06);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #12151b;
+    --surface: #1a1f28;
+    --surface-2: #212836;
+    --border: #323c4d;
+    --ink: #e7eaf1;
+    --ink-muted: #a3acbe;
+    --ink-faint: #6f7890;
+    --accent: #e2914f;
+    --accent-ink: #1a1006;
+    --accent-soft: #3a2a17;
+    --ok: #4fb98a;
+    --ok-soft: #123a2c;
+    --warn: #e2914f;
+    --warn-soft: #3a2a17;
+    --bad: #e17b73;
+    --bad-soft: #3d2020;
+    --info: #7ea6e6;
+    --info-soft: #1c2c46;
+    --grid-line: rgba(231, 234, 241, 0.06);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--accent-soft); }
+
+  a { color: var(--info); }
+
+  h1, h2, h3, h4 { text-wrap: balance; font-weight: 600; letter-spacing: -0.01em; }
+
+  code, .mono { font-family: var(--font-mono); font-feature-settings: "tnum" 1; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    max-width: 1360px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .rail {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 20px 32px 28px;
+    border-right: 1px solid var(--border);
+  }
+
+  .rail-kicker {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 6px;
+  }
+
+  .rail-title {
+    font-size: 17px;
+    margin: 0 0 4px;
+    line-height: 1.3;
+  }
+
+  .rail-sub {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    margin: 0 0 26px;
+  }
+
+  .rail nav { display: flex; flex-direction: column; gap: 2px; }
+
+  .rail nav a {
+    display: block;
+    padding: 6.5px 10px;
+    border-radius: 7px;
+    color: var(--ink-muted);
+    text-decoration: none;
+    font-size: 13px;
+  }
+
+  .rail nav a:hover { color: var(--ink); background: var(--surface-2); }
+
+  .rail-group {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 16px 0 4px;
+    padding: 0 10px;
+  }
+  .rail-group:first-of-type { margin-top: 0; }
+
+  .rail-toggle { display: none; }
+
+  /* ---------- Main content ---------- */
+  main { padding: 48px 56px 120px; min-width: 0; }
+
+  .hero { margin-bottom: 56px; max-width: 780px; }
+
+  .hero-kicker {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .hero-kicker::before { content: ""; width: 22px; height: 1px; background: var(--accent); display: inline-block; }
+
+  .hero h1 { font-size: clamp(28px, 3.4vw, 38px); margin: 0 0 16px; }
+
+  .hero p { font-size: 16px; color: var(--ink-muted); max-width: 64ch; margin: 0 0 8px; }
+
+  .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
+    background: var(--surface);
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .chip.flag { border-color: var(--bad); color: var(--bad); }
+
+  section { margin-bottom: 60px; scroll-margin-top: 24px; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 6px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num { font-family: var(--font-mono); font-size: 13px; color: var(--accent); font-weight: 600; }
+
+  .section-head h2 { font-size: 21px; margin: 0; }
+
+  .section-tag {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .section-tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .section-tag.gap { background: var(--bad-soft); color: var(--bad); }
+
+  .section-intro { color: var(--ink-muted); max-width: 68ch; margin: 16px 0 24px; }
+  .section-intro code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-size: 0.92em; }
+
+  /* ---------- Figures / diagrams ---------- */
+  figure {
+    margin: 0 0 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .diagram-frame {
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    padding: 26px 20px;
+    overflow-x: auto;
+  }
+
+  .diagram-frame pre.mermaid { margin: 0; display: flex; justify-content: center; min-width: fit-content; }
+
+  figcaption {
+    font-size: 13px;
+    color: var(--ink-muted);
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    background: var(--surface);
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px; }
+
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+
+  /* ---------- Callouts ---------- */
+  .note {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 15px 20px;
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    margin: 18px 0;
+  }
+  .note b { color: var(--ink); }
+  .note code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+
+  .note-gap {
+    border: 1px solid var(--bad);
+    border-left: 4px solid var(--bad);
+    background: var(--bad-soft);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 15px 20px;
+    font-size: 13.5px;
+    color: var(--ink);
+    margin: 18px 0;
+  }
+  .note-gap .label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--bad);
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+  .note-gap code { background: rgba(0,0,0,0.08); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+
+  .tier-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 24px 0 8px; }
+  .tier-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 14px 16px; box-shadow: var(--shadow); }
+  .tier-card .t { font-family: var(--font-mono); font-size: 11px; color: var(--accent); letter-spacing: 0.04em; }
+  .tier-card h4 { margin: 4px 0 3px; font-size: 14.5px; }
+  .tier-card p { margin: 0; font-size: 12.5px; color: var(--ink-muted); }
+
+  footer {
+    max-width: 780px;
+    padding-top: 32px;
+    margin-top: 40px;
+    border-top: 1px solid var(--border);
+    color: var(--ink-faint);
+    font-size: 12.5px;
+  }
+
+  @media (max-width: 920px) {
+    .layout { grid-template-columns: 1fr; }
+    .rail { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 20px 20px 12px; }
+    .rail nav { display: none; }
+    .rail.open nav { display: flex; }
+    .rail-toggle {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-muted);
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px;
+      padding: 6px 10px; cursor: pointer;
+    }
+    main { padding: 36px 20px 100px; }
+  }
+</style>
+
+<div class="layout">
+  <aside class="rail" id="rail">
+    <p class="rail-kicker">Engineering reference</p>
+    <h1 class="rail-title">LEADS Dashboard</h1>
+    <p class="rail-sub">Module-by-module flow</p>
+    <button class="rail-toggle" id="railToggle">☰ Contents</button>
+    <nav>
+      <a href="#integration" style="color: var(--accent); font-weight: 600;">★ Module integration map</a>
+      <a href="#erd" style="color: var(--accent); font-weight: 600;">★ ER diagram</a>
+      <div class="rail-group">System</div>
+      <a href="#overview">01 · System overview</a>
+      <a href="#sync">02 · The sync mechanism</a>
+      <a href="#login">03 · Login &amp; session</a>
+
+      <div class="rail-group">Modules</div>
+      <a href="#tasks">04 · Tasks</a>
+      <a href="#events">05 · Events</a>
+      <a href="#ratings">06 · Ratings</a>
+      <a href="#reimb">07 · Reimbursements</a>
+      <a href="#announce">08 · Announcements</a>
+      <a href="#forms">09 · Forms &amp; public submissions</a>
+      <a href="#directory">10 · Directory</a>
+      <a href="#reports">11 · Reports</a>
+      <a href="#settings">12 · Settings ⚠</a>
+
+      <div class="rail-group">Reference</div>
+      <a href="#tiers">13 · Access tiers</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="hero">
+      <p class="hero-kicker">leads-dashboard · Next.js App Router</p>
+      <h1>How every module actually moves data</h1>
+      <p>Twelve modules, each traced from its real source: the page component, the exact <code>local-data.ts</code> function it calls, and what happens server-side. Two of them (§10, §12) turned out to skip the sync path entirely while mapping this — flagged where they appear.</p>
+      <div class="hero-meta">
+        <span class="chip">reflects <b class="mono">a1b46c0</b></span>
+        <span class="chip">12 modules traced</span>
+        <span class="chip flag">2 sync gaps found</span>
+      </div>
+    </div>
+
+    <section id="integration">
+      <div class="section-head"><span class="section-num">★</span><h2>Module integration map</h2></div>
+      <p class="section-intro">One diagram, every cross-module dependency in the codebase. <b style="color:var(--ink)">Members is the hub</b> — every other module resolves a person through it — and three narrower chains run through it: <b style="color:var(--ink)">Events → Tasks → Ratings</b> feed each other directly, while <b style="color:var(--ink)">Reports</b> and the <b style="color:var(--ink)">Audit Log</b> are pure sinks that never write back.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TB
+  Login(["Login"]) -- "getMembers().find(email)" --> Members[("Members\nDirectory")]
+  Settings(["Settings"]) -. "writes user + members[]\ndirectly — bypasses local-data.ts" .-> Members
+
+  Members -- "assigneeId / assigneeEmail\n/ assignee (name)" --> Tasks["Tasks"]
+  Members -- "memberIds / leadMemberId\ninside nested committees" --> Events["Events\n+ nested Committees"]
+  Members -- "targetId / targetName\n/ raterName" --> Ratings["Ratings"]
+  Members -- "memberName / memberEmail" --> Reimb["Reimbursements"]
+  Members -- "recipient resolution\nby tier / committee" --> Announce["Announcements"]
+
+  Events -- "eventId scopes a task;\ncommittee membership decides\nwho can see it" --> Tasks
+  Events -- "eventId / eventName\ntags a claim" --> Reimb
+  Events -- "nested committee names\npopulate the scope dropdown" --> Announce
+
+  Tasks -- "select a task to evaluate" --> Ratings
+  Ratings -- "updateTask(ratingScore)\nwrites back" --> Tasks
+
+  Forms["Forms\n+ Submissions"] -. "createdBy — a name,\nnot a live reference" .-> Members
+
+  Members & Events & Tasks & Ratings --> Aggregate["Reports +\nStudent Profile modal\nread-only aggregation"]
+
+  Login & Members & Settings & Events & Tasks & Ratings & Reimb & Announce & Forms -. "logAuditEvent()\nfrom nearly every mutator" .-> Audit[("Audit Log")]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> solid arrows are live joins a module reads or writes on every render (e.g. a task's <code>assigneeId</code> is looked up against Members every time the page draws). Dotted arrows are weaker links: <b>Settings</b> writes Members but through a separate, unsynced path (§12); <b>Forms</b> only stores a creator's name as text, never a real reference; and every mutator across the system fires a fire-and-forget <code>logAuditEvent()</code> into the Audit Log, which nothing ever reads back from except the Settings audit tab. The dashboard's notification bell is the same shape as <b>Aggregate</b> — a read-only pull from Announcements + Tasks — omitted here to keep the hub legible.</figcaption>
+      </figure>
+    </section>
+
+    <section id="erd">
+      <div class="section-head"><span class="section-num">★</span><h2>ER diagram</h2></div>
+      <p class="section-intro">There is no database engine here — <code>data/database.json</code> is nine plain arrays in one file (§01). Nothing below is enforced by a schema: no foreign-key constraints, no cascade deletes, no uniqueness beyond what an individual API route hand-checks (email on Members, slug on Forms). This diagram is the <em>shape</em> the application imposes on that JSON in practice, not a guarantee the file actually upholds.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+erDiagram
+    MEMBER ||--o{ TASK : "assigned to (assigneeId)"
+    MEMBER ||--o{ RATING : "rated (targetId)"
+    MEMBER ||--o{ REIMBURSEMENT : "claimed by (memberEmail)"
+    MEMBER }o--o{ EVENT_COMMITTEE : "member of (memberIds)"
+    EVENT ||--|{ EVENT_COMMITTEE : "embeds"
+    EVENT ||--o{ TASK : "scopes (eventId)"
+    EVENT ||--o{ REIMBURSEMENT : "tags (eventId)"
+    TASK ||--o| RATING : "evaluated by (taskId)"
+    FORM ||--|{ FORM_FIELD : "embeds"
+    FORM ||--o{ SUBMISSION : "receives (formId)"
+    REIMBURSEMENT ||--|{ RECEIPT_FILE : "embeds, up to 3"
+    MEMBER ||--o{ AUDIT_LOG : "acted (actorEmail, unenforced)"
+    MEMBER ||--o{ ANNOUNCEMENT : "authored (authorName, unenforced)"
+
+    MEMBER {
+        string id PK
+        string name
+        string email UK
+        string role
+        int tier "1-7, lower = broader access"
+        string division
+        string committee "legacy fallback field"
+        string batch "Alumni only"
+    }
+    EVENT {
+        string id PK
+        string title
+        string description
+        date startDate
+        date endDate
+        string status "planned/active/completed/archived"
+        string location
+        string createdBy "Member.name, copied text"
+    }
+    EVENT_COMMITTEE {
+        string id PK
+        string name
+        string leadMemberId FK
+        string memberIds FK "array of Member.id"
+    }
+    TASK {
+        string id PK
+        string title
+        string eventId FK
+        string eventCommitteeId FK
+        string assignee "name, denormalized"
+        string assigneeId FK
+        string assigneeEmail FK
+        string assigneeType "individual/committee"
+        date dueDate
+        string status
+        float ratingScore "written back by Rating"
+    }
+    RATING {
+        string id PK
+        string taskId FK
+        string eventId FK "copied from Task at creation"
+        string targetId FK
+        string targetName "denormalized"
+        string raterName "Member.name, copied text"
+        int quality "1-5"
+        int timeliness "1-5"
+        int initiative "1-5"
+        int collaboration "1-5"
+        float overallScore "avg of the four"
+        string quarter
+        date createdAt
+    }
+    REIMBURSEMENT {
+        string id PK
+        string memberName "denormalized"
+        string memberEmail FK
+        float amount
+        string category
+        string status "Pending/UnderReview/Approved/Denied"
+        string eventId FK
+        string firstPassReviewer "Member.name, copied text"
+        string finalApprover "Member.name, copied text"
+        date submittedAt
+    }
+    RECEIPT_FILE {
+        string name
+        string dataUrl "base64, inline — not a file store"
+        string type
+    }
+    ANNOUNCEMENT {
+        string id PK
+        string title
+        string content
+        string scope "tier/committee label, not an FK"
+        string authorName "copied text"
+        date publishedAt
+    }
+    FORM {
+        string id PK
+        string slug UK
+        string title
+        string committee "free text"
+        string createdBy "copied text"
+        string status "active/archived"
+    }
+    FORM_FIELD {
+        string id PK
+        string label
+        string type "text/email/number/textarea/select/checkbox"
+        boolean required
+    }
+    SUBMISSION {
+        string id PK
+        string formId FK
+        string slug FK "redundant with formId"
+        json data "keyed by FormField.id"
+        date submittedAt
+    }
+    AUDIT_LOG {
+        string id PK
+        string action
+        string actorName "copied text"
+        string actorEmail "copied text, not a real FK"
+        string target
+        date timestamp
+    }
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> solid PK/FK pairs (<code>MEMBER.id</code> → <code>TASK.assigneeId</code>, <code>EVENT.id</code> → <code>TASK.eventId</code>) are read back and joined on every render. The three entities marked "unenforced" or "copied text" (<code>createdBy</code>, <code>authorName</code>, <code>actorEmail</code>) are exactly that — a name stored once at write time, never re-validated against the Member it came from, so a member rename doesn't propagate to their past announcements, forms, or audit history. <code>EVENT_COMMITTEE</code>, <code>FORM_FIELD</code>, and <code>RECEIPT_FILE</code> are weak entities with no <code>id</code> space of their own outside their parent's array — there's no <code>/api/committees</code> or <code>/api/receipts</code>, only the parent record carrying them whole.</figcaption>
+      </figure>
+    </section>
+
+    <section id="overview">
+      <div class="section-head"><span class="section-num">01</span><h2>System overview</h2></div>
+      <p class="section-intro">One Next.js process serves every browser. There is no separate database server: <code>data/database.json</code> on that process's own disk <em>is</em> the database, guarded by a single in-memory write queue.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart LR
+  subgraph clients["Browsers — any device on the LAN"]
+    A["Person A"]
+    B["Person B"]
+    C["Person C"]
+  end
+  subgraph server["One Next.js process"]
+    direction TB
+    routes["API routes\n/api/&lt;collection&gt;\n/api/&lt;collection&gt;/[id]"]
+    mutex["server-db.ts\nwriteLock — serializes every write"]
+    routes --> mutex
+  end
+  file[("data/database.json\none file, 9 arrays")]
+  A -- "GET / POST / PATCH / DELETE" --> routes
+  B -- "GET / POST / PATCH / DELETE" --> routes
+  C -- "GET / POST / PATCH / DELETE" --> routes
+  mutex -- "read + write, one at a time" --> file
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> every device talks to the same process over HTTP; two running instances would each keep an independent file, and nothing here would ever reconcile them.</figcaption>
+      </figure>
+    </section>
+
+    <section id="sync">
+      <div class="section-head"><span class="section-num">02</span><h2>The sync mechanism</h2></div>
+      <p class="section-intro">No websocket, no push. Every open tab polls <code>GET /api/data</code> every 7 seconds and re-renders if anything changed. Every module below rides on this same path.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+sequenceDiagram
+  participant A as Person A's tab
+  participant API as API route
+  participant DB as server-db.ts + database.json
+  participant B as Person B's tab (already open)
+  A->>A: performs an action (any module)
+  A->>A: local-data.ts mutates local state<br/>optimistic UI update, instant
+  A->>API: POST / PATCH / DELETE<br/>(full merged record)
+  API->>DB: mutateCollection() — queued on writeLock
+  DB-->>API: updated record (found, or upserted if missing)
+  API-->>A: 200 OK
+  loop every 7s, every open tab
+    B->>API: GET /api/data
+    API->>DB: readDb()
+    DB-->>API: current collections
+    API-->>B: full snapshot
+    B->>B: hydrateCollection() writes localStorage verbatim
+    B->>B: dispatchEvent("leads-data-sync")
+    B->>B: page's refreshData() re-renders
+  end
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> Person B's screen only updates because its own poll asked again — nothing is pushed. Two modules (§10, §12) never reach the top half of this diagram at all.</figcaption>
+      </figure>
+    </section>
+
+    <section id="login">
+      <div class="section-head"><span class="section-num">03</span><h2>Login &amp; session</h2></div>
+      <p class="section-intro">No password hashing, no token — a member row and a client-side <code>localStorage</code> flag <em>is</em> the session.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  A["Visit / (login page)"] --> B{"localStorage 'user'\nalready set?"}
+  B -- yes --> C["router.push /dashboard/home"]
+  B -- no --> D["Show login form"]
+  D --> E["Submit email + password"]
+  E --> F{"password.length ≥ 4?"}
+  F -- no --> G["Inline error, stays on form"]
+  F -- yes --> H["getMembers().find(email match)"]
+  H -- not found --> I["Error: no account with that email"]
+  H -- found --> J["localStorage.setItem('user', member)"]
+  J --> K["logAuditEvent('USER_LOGIN')"]
+  K --> L["router.push /dashboard/home"]
+  L --> M["DashboardShell mounts"]
+  M --> N["setUser · syncWithServer() once\nstart 7s poll interval\nbuild notifications from announcements + tasks"]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> the password is checked for length only, against no stored credential — any string ≥4 characters authenticates as long as the email matches a real row. Session state is one <code>localStorage</code> key, so logging out on one device has no effect anywhere else.</figcaption>
+      </figure>
+    </section>
+
+    <section id="tasks">
+      <div class="section-head"><span class="section-num">04</span><h2>Tasks</h2><span class="section-tag ok">follows sync path</span></div>
+      <p class="section-intro">A status lifecycle with one branch (extension requests need leadership sign-off) and a visibility rule that depends on whether the assignee is a person or a whole committee.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart LR
+  create["Leadership / Core Committee\naddTask()"] --> assigned["Assigned"]
+  assigned --> inprogress["In Progress"]
+  inprogress --> completed["Completed"]
+  inprogress -- "assignee requests more time" --> extreq["updateTask(status:\n'Pending Extension')"]
+  extreq --> pending["Pending Extension"]
+  pending -- "tier ≤3 approves" --> extended["In Progress\ndue date +3 days,\ndecidedBy/decidedAt stamped"]
+  pending -- "tier ≤3 denies" --> denied["In Progress\ndue date unchanged,\ndecision stamped"]
+  completed -. "Ratings module (§06)\nstamps ratingScore" .-> completed
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> only tier ≤3 sees the "Extension Requests Awaiting Leadership Decision" queue at all; approving always adds exactly 3 days, denying always reverts to In Progress.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  start(["canViewTask(task, user)\nruns for every task, every render"]) --> t1{"tier ≤ 4?"}
+  t1 -- yes --> allow1["visible\n(1–3 manage it, 4 observes)"]
+  t1 -- no --> t2{"assigneeType?"}
+  t2 -- individual --> ind{"name / email / id\nmatches this user?"}
+  ind -- yes --> allow2["visible"]
+  ind -- no --> deny1["hidden"]
+  t2 -- committee --> com1{"legacy user.committee text\nmatches assignee or\neventCommitteeName?"}
+  com1 -- yes --> allow3["visible"]
+  com1 -- no --> com2{"user's member id in the\nevent committee's memberIds\nor leadMemberId?"}
+  com2 -- yes --> allow4["visible"]
+  com2 -- no --> deny2["hidden"]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> a committee task has two independent ways to match — either is sufficient — which is why fixing "committee tasks are invisible" only needed one new branch, not a rewrite.</figcaption>
+      </figure>
+    </section>
+
+    <section id="events">
+      <div class="section-head"><span class="section-num">05</span><h2>Events</h2><span class="section-tag ok">follows sync path</span></div>
+      <p class="section-intro">Two screens: the events list (plain CRUD) and the per-event workspace, where committees and tasks nest inside one event record.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  list["Events list"] --> create["Create Event\naddEvent() — auto-seeds 3 default\ncommittees: Logistics · AV · Design"]
+  list --> open["Open Event Workspace\n/dashboard/events/[id]"]
+  open --> committees["Committees panel\n(leadership / core committee only)"]
+  committees --> addc["Add Unit\naddEventCommittee()"]
+  committees --> manage["Assign / Manage Students\nupdateEventCommitteeMembers()"]
+  committees --> delc["Remove Committee\ndeleteEventCommittee()"]
+  open --> etasks["Event Tasks panel"]
+  etasks --> assign["Assign Task\naddTask() scoped to this event,\nassignee = a student OR a committee"]
+  addc -.-> patch["each committee edit re-patches\nthe WHOLE parent event record"]
+  manage -.-> patch
+  delc -.-> patch
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> committees are nested inside <code>EventItem.committees[]</code>, not their own collection — there is no <code>/api/committees</code>, only ever <code>/api/events/[eventId]</code> carrying the whole array.</figcaption>
+      </figure>
+    </section>
+
+    <section id="ratings">
+      <div class="section-head"><span class="section-num">06</span><h2>Ratings</h2><span class="section-tag ok">follows sync path</span></div>
+      <p class="section-intro">One evaluation writes two records: the rating itself, and a score stamped back onto the source task.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  queue["Task Evaluation Queue\n(tasks: Completed or In Progress)"] --> pick{"isAdmin?\ntier ≤3 or tier 5"}
+  pick -- no --> wait["'Awaiting advisor evaluation'\nread-only"]
+  pick -- yes --> score["Score 4 dimensions, 1–5:\nQuality · Timeliness · Initiative · Collaboration"]
+  score --> submit["addRating()\noverallScore = average of the 4"]
+  submit --> stamp["updateTask(taskId, {ratingScore})\none user action, two records patched"]
+  history["Scorecard History table"] --> editcheck{"tier===1, or you\nare the original rater?"}
+  editcheck -- yes --> edit["updateRating() / deleteRating()"]
+  editcheck -- no --> readonly["view only"]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> editing a past scorecard is gated by authorship, not just tier — a tier-5 rater can fix their own scorecard but not someone else's, only the Super User can touch any of them.</figcaption>
+      </figure>
+    </section>
+
+    <section id="reimb">
+      <div class="section-head"><span class="section-num">07</span><h2>Reimbursements</h2><span class="section-tag ok">follows sync path</span></div>
+      <p class="section-intro">The only module with two distinct human reviewers on one record, and a stage that's derived from who's acting — not from which button they clicked.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart LR
+  form["Submit Expense Claim"] --> validate{"amount &gt; 0 AND\ndescription + bank fields filled?"}
+  validate -- no --> err["Inline error"]
+  validate -- yes --> files["Attach up to 3 files —\nFileReader → base64, stored inline"]
+  files --> submit["addReimbursement()\nstatus: Pending"]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> receipts aren't uploaded to storage — they're base64-encoded straight into the JSON record, which is part of why <code>database.json</code> can grow large fast.</figcaption>
+      </figure>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> Pending: submit() above
+  Pending --> UnderReview: Core Committee (tier 5)\nrecommends — firstPassReviewer set
+  Pending --> Denied: Core Committee (tier 5)\ndenies at first pass
+  Pending --> Approved: Leadership (tier ≤3)\ndirect-approves, skipping stage 1
+  Pending --> Denied: Leadership (tier ≤3)\ndenies directly
+  UnderReview --> Approved: Leadership (tier ≤3)\nfinal approve — finalApprover set
+  UnderReview --> Denied: Leadership (tier ≤3)\nfinal deny
+  Approved --> [*]
+  Denied --> [*]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> <code>updateReimbursementStatus()</code> reads the reviewer's own <code>tier</code> to pick the stage — the caller never gets to declare it, so a tier-5 approval can't masquerade as the final sign-off. Only tier ≤3 and tier 5 see every claim; everyone else sees only <code>memberEmail === their own</code>.</figcaption>
+      </figure>
+    </section>
+
+    <section id="announce">
+      <div class="section-head"><span class="section-num">08</span><h2>Announcements</h2><span class="section-tag ok">follows sync path</span></div>
+      <p class="section-intro">Plain CRUD, plus a self-contained "dispatch" step that looks like it sends email and deliberately doesn't.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  publish["canPublish (tier ≤3 or tier 5)\nwrites title / content / scope"] --> save["addAnnouncement()"]
+  save --> resolve["Resolve recipients by scope:\nAll · Advisory Board (t4) · Core Committee (t5)\nTraining Associate (t6) · Executive Council · a named committee"]
+  resolve --> sim["Email Dispatch Simulator opens"]
+  sim --> run["Run Broadcast Simulation"]
+  run --> log["setInterval logs one line per\nrecipient, 250ms apart"]
+  log -. "no network request\nleaves the browser" .-> log
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> the simulator's own on-screen banner says "no external email servers are contacted" — the log lines are generated client-side on a timer, nothing here is wired to a real mail provider.</figcaption>
+      </figure>
+    </section>
+
+    <section id="forms">
+      <div class="section-head"><span class="section-num">09</span><h2>Forms &amp; public submissions</h2><span class="section-tag ok">follows sync path</span></div>
+      <p class="section-intro">The only module with an unauthenticated write path — anyone holding the link can create a real record without logging in.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  subgraph admin["Dashboard — canBuild: tier 1 or tier 5"]
+    build["Design fields + choose slug"] --> uniq{"isSlugUnique()? —\nclient check, then re-checked\nserver-side on POST"}
+    uniq -- taken --> ferr["Inline error, not saved"]
+    uniq -- free --> save["addForm()"]
+  end
+  save --> link(["Shareable link\n/forms/[slug]"])
+  subgraph pub["Public /forms/[slug] — no login"]
+    visit["Anyone opens the link"] --> lookup{"slug matches a\npublished form?"}
+    lookup -- no --> nf["Form Not Found page"]
+    lookup -- yes --> fill["Fill dynamic fields"]
+    fill --> honey{"hidden honeypot\nfield non-empty?"}
+    honey -- "yes, likely bot" --> fake["Shows success,\nsubmission silently dropped"]
+    honey -- no --> real["addSubmission()"]
+  end
+  real --> back["Submissions table,\nback in the dashboard"]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> slug collisions are checked twice — once client-side for instant feedback, once server-side in the API route — because the client check alone can't stop two people creating the same slug at once.</figcaption>
+      </figure>
+    </section>
+
+    <section id="directory">
+      <div class="section-head"><span class="section-num">10</span><h2>Directory</h2><span class="section-tag gap">CSV import skips the server</span></div>
+      <p class="section-intro">The identity table every other module's <code>assigneeId</code> / <code>targetId</code> / <code>memberEmail</code> resolves back to. Most of it follows the standard pattern — bulk CSV import doesn't.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  add["Add Member (tier ≤3)\naddMember() — rejects duplicate email"] --> list["Directory table"]
+  csv["Upload Roster (CSV)"] --> parse["Parse rows client-side,\nDivision text → tier\n(Advisory→4 · Core→5 · Training→6 · Alumni→7)"]
+  parse --> dedupe{"email already\nin current roster?"}
+  dedupe -- yes --> skip["Skipped, counted"]
+  dedupe -- no --> push["Pushed into the in-memory array"]
+  push --> onesave["saveMembers(wholeArray) — ONE call,\nafter every row is parsed"]
+  select["Select rows"] --> bulk["Floating bulk toolbar"]
+  bulk --> move["Move Division\nbulkUpdateMembers()"]
+  bulk --> uniform["Uniform Bulk Edit\nbulkUpdateMembers()"]
+  bulk --> bulkdel["Bulk Delete\nbulkDeleteMembers()\n(m1 Super User exempt)"]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> every path except CSV import calls a function that also fires <code>serverPost</code>/<code>serverPatch</code>. CSV import's <code>onesave</code> step is <code>saveMembers()</code> alone — see the gap note below.</figcaption>
+      </figure>
+
+      <div class="note-gap">
+        <span class="label">Sync gap found while mapping this</span>
+        Bulk CSV import builds each new member in memory and finishes with one <code>saveMembers(currentMembers)</code> call — which only writes <code>localStorage</code>. Unlike <code>addMember()</code> (used by the single-add form), it never calls <code>serverPost</code>. Imported rows are visible instantly to the person who ran the import, then vanish for them too on their next poll, and never appear for anyone else — the same failure mode as the reimbursement ghost-revert bug, on a path that was never patched.
+      </div>
+    </section>
+
+    <section id="reports">
+      <div class="section-head"><span class="section-num">11</span><h2>Reports</h2><span class="section-tag ok">read-only</span></div>
+      <p class="section-intro">A pure aggregation view — it holds no state of its own, so it's never the <em>source</em> of a stale-data report, only ever a symptom.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart LR
+  reads["getRatings() · getMembers() · getTasks()"] --> filter["Filter by Division / Target / Quarter"]
+  filter --> agg["Average Quality · Timeliness ·\nInitiative · Collaboration"]
+  agg --> viz["Bar chart + Radar chart\n(Recharts)"]
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> no writes anywhere in this module. If a chart looks wrong, the bug lives in Ratings (§06), Tasks (§04), or Directory (§10) — not here.</figcaption>
+      </figure>
+    </section>
+
+    <section id="settings">
+      <div class="section-head"><span class="section-num">12</span><h2>Settings</h2><span class="section-tag gap">writes never reach the server</span></div>
+      <p class="section-intro">Three tabs — Account, Roles &amp; Permissions, Audit Log. Only Account has a write path, and it's the second module found to skip <code>local-data.ts</code> entirely.</p>
+      <figure>
+        <div class="diagram-frame">
+<pre class="mermaid">
+flowchart TD
+  tabs["Account · Roles &amp; Permissions · Audit Log"] --> account["Account tab: edit display name\n+ optional new password"]
+  account --> direct["localStorage.setItem('user', …)\nAND\nlocalStorage.setItem('leads_members', …)\ncalled directly — bypasses local-data.ts"]
+  direct --> gap(["No serverPatch fires.\nChange is invisible to every\nother device, and gets overwritten\nby this device's own next poll."])
+</pre>
+        </div>
+        <figcaption><b>What this shows —</b> compare this to any other module's update path (§04–§10) — every one of them calls a <code>local-data.ts</code> function that fires <code>serverPatch</code>. This one writes the two <code>localStorage</code> keys directly instead.</figcaption>
+      </figure>
+
+      <div class="note-gap">
+        <span class="label">Sync gap found while mapping this</span>
+        Renaming yourself or setting a password in Settings only ever changes <em>this browser's</em> copy of your member record — it never reaches <code>data/database.json</code>. The next 7-second poll on this same device overwrites it right back to the server's version, so the change doesn't even survive locally. This is separate from — and on top of — the fact that "change password" doesn't hash or verify anything real (see <code>docs/bugs-to-fix.md</code> item 6).
+      </div>
+    </section>
+
+    <section id="tiers">
+      <div class="section-head"><span class="section-num">13</span><h2>Access tiers</h2></div>
+      <p class="section-intro">Seven numeric tiers, lower number = broader access. Tiers gate what's visible and actionable inside a module — they don't gate which modules appear in the sidebar.</p>
+      <div class="tier-grid">
+        <div class="tier-card"><span class="t">TIER 1</span><h4>Super User</h4><p>Full operations &amp; settings control. Only tier that can't be bulk-deleted from Directory.</p></div>
+        <div class="tier-card"><span class="t">TIER 2</span><h4>Centre Head</h4><p>Member management, final reimbursement sign-off.</p></div>
+        <div class="tier-card"><span class="t">TIER 3</span><h4>Head of Events</h4><p>Event creation, task assignment, final reimbursement sign-off.</p></div>
+        <div class="tier-card"><span class="t">TIER 4</span><h4>Advisory Board</h4><p>Strategic read-only oversight — sees everything, assigned nothing operational.</p></div>
+        <div class="tier-card"><span class="t">TIER 5</span><h4>Core Committee</h4><p>Runs day-to-day operations; first-pass reimbursement reviewer; only non-leadership tier that can build public forms.</p></div>
+        <div class="tier-card"><span class="t">TIER 6</span><h4>Training Associate</h4><p>Completes assigned tasks, submits own claims.</p></div>
+        <div class="tier-card"><span class="t">TIER 7</span><h4>Alumni</h4><p>Mentorship / advisory division — outside the active operational chain.</p></div>
+      </div>
+    </section>
+
+    <footer>
+      Generated from the live codebase at commit <code class="mono">a1b46c0</code>. Every diagram traces a code path read directly in <code class="mono">local-data.ts</code>, <code class="mono">server-db.ts</code>, the <code class="mono">/api/*</code> route handlers, and each page component — not aspirational architecture.
+    </footer>
+  </main>
+</div>
+
+<script>
+  var toggle = document.getElementById('railToggle');
+  var rail = document.getElementById('rail');
+  if (toggle) {
+    toggle.addEventListener('click', function () { rail.classList.toggle('open'); });
+  }
+</script>

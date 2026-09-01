@@ -1,0 +1,908 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import {
+  Plus,
+  X,
+  Calendar,
+  MapPin,
+  Users,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  ShieldAlert,
+  ArrowRight,
+  Download,
+  Upload,
+  Clock,
+  Check,
+  Ban,
+  Handshake,
+  Sparkles
+} from 'lucide-react';
+import { getEvents, addEvent, updateEvent, deleteEvent, approveEvent, rejectEvent, submitEventEdit, submitEventDelete, getEffectiveEventStatus, formatEventDateRange, getEventSortTime, getEventSponsors, getEventSponsorTotal, EventItem, EventSponsor } from '@/lib/local-data';
+import { canCreateEvent, canEditEvent, canDeleteEvent, canManageEvents, canViewEvent, canApprovePendingEvent, getEventApprovalRequirement } from '@/lib/permissions';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useDropTarget } from '@/components/ui/file-dropzone';
+
+type EventStatusFilter = 'ALL' | 'ONGOING' | 'COMPLETED' | 'ARCHIVED';
+
+export default function EventsPage() {
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState<EventStatusFilter>('ALL');
+
+  // Modals
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [rejectingEventId, setRejectingEventId] = useState<string | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+
+  // Form State
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [datesTBD, setDatesTBD] = useState(false);
+  const [location, setLocation] = useState('');
+  const [campus, setCampus] = useState<'GG Campus' | 'RTC Campus' | 'Both Campuses'>('GG Campus');
+  const [status, setStatus] = useState<EventItem['status']>('planned');
+  const [sponsors, setSponsors] = useState<EventSponsor[]>([]);
+  const [formError, setFormError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isDragOver: isCsvDragOver, dragHandlers: csvDragHandlers } = useDropTarget((files) => handleCsvFile(files[0]));
+
+  useEffect(() => {
+    const refreshData = () => {
+      setEvents(getEvents());
+    };
+    refreshData();
+
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    window.addEventListener('leads-data-sync', refreshData);
+    window.addEventListener('storage', refreshData);
+    return () => {
+      window.removeEventListener('leads-data-sync', refreshData);
+      window.removeEventListener('storage', refreshData);
+    };
+  }, []);
+
+  const triggerSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    setErrorMsg('');
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
+  const triggerError = (msg: string) => {
+    setErrorMsg(msg);
+    setSuccessMsg('');
+    setTimeout(() => setErrorMsg(''), 5000);
+  };
+
+  const VALID_STATUSES: EventItem['status'][] = ['planned', 'active', 'completed', 'archived'];
+
+  const handleDownloadTemplate = () => {
+    const csvContent = 'Title,Description,StartDate,EndDate,Location,Status\n' +
+      'National Robotics Symposium 2026,Annual robotics and AI showcase,2026-09-10,2026-09-12,Auditorium 2,planned\n' +
+      'Design Sprint Weekend,Two-day UI/UX design bootcamp,2026-10-01,2026-10-02,Design Lab,planned';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'leads_events_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleCsvFile(e.target.files?.[0]);
+    e.target.value = '';
+  };
+
+  const handleCsvFile = (file: File | undefined) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      try {
+        const lines = text.split('\n');
+        if (lines.length < 2) {
+          triggerError('CSV file is empty or missing headers.');
+          return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const titleIndex = headers.indexOf('title');
+        const descIndex = headers.indexOf('description');
+        const startIndex = headers.indexOf('startdate');
+        const endIndex = headers.indexOf('enddate');
+        const locationIndex = headers.indexOf('location');
+        const statusIndex = headers.indexOf('status');
+
+        if (titleIndex === -1 || startIndex === -1 || endIndex === -1) {
+          triggerError('Invalid CSV headers. Required at minimum: Title, StartDate, EndDate');
+          return;
+        }
+
+        let importCount = 0;
+        let skippedCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          const values = line.split(',').map(v => v.replace(/^"|"$/g, '').trim());
+          if (values.length < 2) continue;
+
+          const evTitle = values[titleIndex];
+          const evStart = values[startIndex];
+          const evEnd = values[endIndex];
+
+          if (!evTitle || !evStart || !evEnd || isNaN(new Date(evStart).getTime()) || isNaN(new Date(evEnd).getTime())) {
+            skippedCount++;
+            continue;
+          }
+          if (new Date(evEnd) < new Date(evStart)) {
+            skippedCount++;
+            continue;
+          }
+
+          const rawStatus = statusIndex !== -1 ? values[statusIndex].toLowerCase() : 'planned';
+          const evStatus = (VALID_STATUSES as string[]).includes(rawStatus) ? rawStatus as EventItem['status'] : 'planned';
+
+          addEvent({
+            title: evTitle,
+            description: descIndex !== -1 ? values[descIndex] : '',
+            startDate: evStart,
+            endDate: evEnd,
+            location: locationIndex !== -1 ? values[locationIndex] : '',
+            status: evStatus,
+            createdBy: user?.name || 'User',
+            committees: [
+              { id: 'c_' + Date.now() + '_' + i + '_1', name: 'Logistics & Venue Committee', memberIds: [] },
+              { id: 'c_' + Date.now() + '_' + i + '_2', name: 'Technical & AV Committee', memberIds: [] },
+              { id: 'c_' + Date.now() + '_' + i + '_3', name: 'Design & Media Committee', memberIds: [] }
+            ]
+          });
+          importCount++;
+        }
+
+        if (importCount > 0) {
+          setEvents(getEvents());
+          triggerSuccess(`Successfully imported ${importCount} new event(s). ${skippedCount > 0 ? `(${skippedCount} invalid row(s) skipped)` : ''}`);
+        } else {
+          triggerError('No valid event rows found in the CSV — check that Title, StartDate, and EndDate are filled in and dates are valid.');
+        }
+      } catch {
+        triggerError('Error parsing CSV file. Please verify formatting.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleOpenCreate = () => {
+    setTitle('');
+    setDescription('');
+    setStartDate('');
+    setEndDate('');
+    setDatesTBD(false);
+    setLocation('');
+    setCampus('GG Campus');
+    setStatus('planned');
+    setSponsors([]);
+    setFormError('');
+    setIsCreateModalOpen(true);
+  };
+
+  const handleOpenEdit = (event: EventItem) => {
+    setEditingEvent(event);
+    setTitle(event.title);
+    setDescription(event.description);
+    setStartDate(event.startDate);
+    setEndDate(event.endDate);
+    setDatesTBD(!!event.datesTBD);
+    setLocation(event.location || '');
+    setCampus(event.campus || 'GG Campus');
+    setStatus(event.status);
+    setSponsors(event.sponsors || []);
+    setFormError('');
+  };
+
+  const addSponsorRow = () => {
+    setSponsors((rows) => [...rows, { id: 'sp_' + Date.now(), name: '', amount: undefined }]);
+  };
+
+  const updateSponsorRow = (id: string, patch: Partial<EventSponsor>) => {
+    setSponsors((rows) => rows.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  };
+
+  const removeSponsorRow = (id: string) => {
+    setSponsors((rows) => rows.filter((s) => s.id !== id));
+  };
+
+  const handleSaveEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+
+    if (!title.trim() || (!datesTBD && (!startDate || !endDate))) {
+      setFormError('Please fill in event title and active dates (or mark dates as To Be Decided).');
+      return;
+    }
+
+    if (!datesTBD && new Date(endDate) < new Date(startDate)) {
+      setFormError('End Date must be on or after Start Date.');
+      return;
+    }
+
+    const cleanedSponsors = sponsors
+      .filter((s) => s.name.trim())
+      .map((s) => ({ ...s, name: s.name.trim(), amount: Number(s.amount) || undefined }));
+
+    if (editingEvent) {
+      const changes = {
+        title: title.trim(),
+        description: description.trim(),
+        startDate: datesTBD ? '' : startDate,
+        endDate: datesTBD ? '' : endDate,
+        datesTBD,
+        location: location.trim(),
+        campus,
+        status,
+        sponsors: cleanedSponsors,
+      };
+      const approval = getEventApprovalRequirement(user, 'EDIT');
+      if (approval.requiresApproval) {
+        submitEventEdit(editingEvent.id, changes, user?.name || 'User', user?.email || '', {
+          approverType: approval.approverType,
+          approverMemberId: approval.approverMemberId,
+          approverPolicyTagId: approval.approverPolicyTagId,
+          policyName: approval.policyName,
+        });
+        triggerSuccess(`Edit submitted for approval from ${approval.approverName}. It will apply once approved.`);
+      } else {
+        updateEvent(editingEvent.id, changes, user?.name || 'User');
+        triggerSuccess('Event details updated successfully.');
+      }
+      setEditingEvent(null);
+    } else {
+      const newEventBase = {
+        title: title.trim(),
+        description: description.trim(),
+        startDate: datesTBD ? '' : startDate,
+        endDate: datesTBD ? '' : endDate,
+        datesTBD,
+        location: location.trim(),
+        campus,
+        status,
+        sponsors: cleanedSponsors,
+        createdBy: user?.name || 'User',
+        committees: [
+          { id: 'c_' + Date.now() + '_1', name: 'Logistics & Venue Committee', memberIds: [] },
+          { id: 'c_' + Date.now() + '_2', name: 'Technical & AV Committee', memberIds: [] },
+          { id: 'c_' + Date.now() + '_3', name: 'Design & Media Committee', memberIds: [] }
+        ]
+      };
+      const approval = getEventApprovalRequirement(user, 'CREATE');
+      if (approval.requiresApproval) {
+        addEvent({
+          ...newEventBase,
+          approvalStatus: 'pending_create',
+          approverType: approval.approverType,
+          approverMemberId: approval.approverMemberId,
+          approverPolicyTagId: approval.approverPolicyTagId,
+          approvalPolicyName: approval.policyName,
+          submittedBy: user?.name,
+          submittedByEmail: user?.email,
+        });
+        triggerSuccess(`Event submitted for approval from ${approval.approverName}. It will go live once approved.`);
+      } else {
+        addEvent(newEventBase);
+        triggerSuccess('New event created with its own directory and sub-committees.');
+      }
+      setIsCreateModalOpen(false);
+    }
+
+    setEvents(getEvents());
+  };
+
+  const handleApproveEvent = (id: string) => {
+    const wasDelete = events.find(e => e.id === id)?.approvalStatus === 'pending_delete';
+    approveEvent(id, user?.name || 'User');
+    setEvents(getEvents());
+    triggerSuccess(wasDelete ? 'Approved. The event has been deleted.' : 'Approved. The change is now live.');
+  };
+
+  const handleConfirmReject = () => {
+    if (!rejectingEventId) return;
+    rejectEvent(rejectingEventId, user?.name || 'User', rejectionReasonInput || undefined);
+    setEvents(getEvents());
+    setRejectingEventId(null);
+    setRejectionReasonInput('');
+    triggerSuccess('Rejected.');
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingEventId) return;
+    const approval = getEventApprovalRequirement(user, 'DELETE');
+    if (approval.requiresApproval) {
+      submitEventDelete(deletingEventId, user?.name || 'User', user?.email || '', {
+        approverType: approval.approverType,
+        approverMemberId: approval.approverMemberId,
+        approverPolicyTagId: approval.approverPolicyTagId,
+        policyName: approval.policyName,
+      });
+      triggerSuccess(`Deletion submitted for approval from ${approval.approverName}. The event stays live until then.`);
+    } else {
+      deleteEvent(deletingEventId, user?.name || 'User');
+      triggerSuccess('Event removed from system.');
+    }
+    setDeletingEventId(null);
+    setEvents(getEvents());
+  };
+
+  const canManage = canManageEvents(user);
+  const canCreate = canCreateEvent(user);
+
+  const getStatusBadge = (eventStatus: EventItem['status']) => {
+    switch (eventStatus) {
+      case 'active':
+        return 'bg-success/15 text-success border border-success/30';
+      case 'planned':
+        return 'bg-warning/15 text-warning border border-warning/30';
+      case 'completed':
+        return 'bg-primary/15 text-primary-light border border-primary/30';
+      case 'archived':
+        return 'bg-theme-border/30 text-theme-text-secondary';
+    }
+  };
+
+  // Visibility: a pending/rejected submission is only shown to its submitter, its
+  // resolved approver, and the Super User — everyone else sees nothing of it until
+  // it's approved. Once approved (or for events created before this feature, which
+  // carry no approvalStatus at all), the normal own/listed-vs-all rule from
+  // canViewEvent applies.
+  const canSeeApprovalMeta = (event: EventItem) =>
+    user?.tier === 1 || event.submittedByEmail === user?.email || canApprovePendingEvent(event, user);
+
+  const visibleEvents = events
+    .filter(event => !event.isHoliday)
+    .filter(event => {
+      if (event.approvalStatus === 'pending_create' || event.approvalStatus === 'rejected') {
+        return canSeeApprovalMeta(event);
+      }
+      return canViewEvent(event, user);
+    });
+
+  // Upcoming/active events first (soonest start date first), then events whose end
+  // date has already passed — those sort most-recently-ended first, and their
+  // status badge shows "completed" even if it's still stored as "planned"/"active"
+  // (nothing ever auto-transitioned it before), so the grid reads as a real
+  // upcoming-vs-past view instead of an arbitrary jumble.
+  const statusRank = (s: EventItem['status']) => (s === 'archived' ? 2 : s === 'completed' ? 1 : 0);
+  const sortedEvents = [...visibleEvents].sort((a, b) => {
+    const aStatus = getEffectiveEventStatus(a);
+    const bStatus = getEffectiveEventStatus(b);
+    const rankDiff = statusRank(aStatus) - statusRank(bStatus);
+    if (rankDiff !== 0) return rankDiff;
+    const aTime = getEventSortTime(a);
+    const bTime = getEventSortTime(b);
+    const isPast = aStatus === 'completed' || aStatus === 'archived';
+    return isPast ? bTime - aTime : aTime - bTime;
+  });
+
+  const statusFilteredEvents = sortedEvents.filter(event => {
+    if (statusFilter === 'ALL') return true;
+    const effective = getEffectiveEventStatus(event);
+    if (statusFilter === 'ONGOING') return effective === 'planned' || effective === 'active';
+    if (statusFilter === 'COMPLETED') return effective === 'completed';
+    return effective === 'archived';
+  });
+
+  return (
+    <div className="p-6 md:p-8 space-y-6">
+      
+      {/* Alert Banner */}
+      {successMsg && (
+        <div className="flex items-center gap-3 p-4 bg-success/15 border border-success/20 rounded-2xl text-theme-text-primary text-xs animate-in fade-in duration-300">
+          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="flex items-center gap-3 p-4 bg-danger/15 border border-danger/20 rounded-2xl text-theme-text-primary text-xs animate-in fade-in duration-300">
+          <ShieldAlert className="h-5 w-5 text-danger shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Header section with Create Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Events & Milestone Operations</h1>
+          <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Manage symposiums, create event-specific sub-committees, and assign student teams</p>
+        </div>
+        {canManage && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={handleDownloadTemplate}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-white text-xs font-bold rounded-xl transition-all cursor-pointer border border-slate-300 dark:border-white/15 shadow-sm"
+              title="Download CSV Template"
+            >
+              <Download className="h-4 w-4" />
+              Download Template
+            </button>
+
+            <button
+              onClick={handleUploadClick}
+              {...csvDragHandlers}
+              className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer border shadow-sm ${
+                isCsvDragOver
+                  ? 'border-accent bg-accent/15 shadow-md shadow-accent/25 ring-2 ring-accent/30 text-accent'
+                  : 'border-slate-300 dark:border-white/15 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-white'
+              }`}
+              title="Upload Filled CSV File — click or drag and drop"
+            >
+              <Upload className="h-4 w-4" />
+              {isCsvDragOver ? 'Drop CSV here' : 'Upload Events (CSV)'}
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".csv"
+              className="hidden"
+            />
+
+            <Link
+              href="/dashboard/festivals"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-accent/15 border border-accent/35 text-accent hover:bg-accent/25 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
+            >
+              <Sparkles className="h-4 w-4" />
+              Festivals & Observances
+            </Link>
+
+            {canCreate && (
+              <button
+                onClick={handleOpenCreate}
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-accent/25 cursor-pointer uppercase tracking-wider"
+              >
+                <Plus className="h-4 w-4" />
+                Create New Event
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Status Filter Tabs */}
+      {visibleEvents.length > 0 && (
+        <div className="flex items-center gap-1.5 bg-slate-100/90 dark:bg-slate-900/80 rounded-2xl p-1.5 w-fit border border-slate-200/90 dark:border-white/15 shadow-sm">
+          {([
+            { key: 'ALL', label: 'All Events' },
+            { key: 'ONGOING', label: 'Ongoing' },
+            { key: 'COMPLETED', label: 'Completed' },
+            { key: 'ARCHIVED', label: 'Archived' },
+          ] as { key: EventStatusFilter; label: string }[]).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                statusFilter === tab.key
+                  ? 'bg-accent text-white shadow-md shadow-accent/25 scale-105'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-white/10'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Grid of Events Cards */}
+      {visibleEvents.length === 0 ? (
+        <EmptyState
+          icon={Calendar}
+          title="No events scheduled"
+          description="Create your first symposium, workshop, or conference milestone."
+          actionLabel={canCreate ? "Create Event" : undefined}
+          onAction={canCreate ? handleOpenCreate : undefined}
+        />
+      ) : statusFilteredEvents.length === 0 ? (
+        <EmptyState
+          icon={Calendar}
+          title="No events match this filter"
+          description="Try a different status tab to see other events."
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {statusFilteredEvents.map((event) => {
+            const effectiveStatus = getEffectiveEventStatus(event);
+            const isPast = effectiveStatus === 'completed' || effectiveStatus === 'archived';
+
+            return (
+              <div
+                key={event.id}
+                className={`glass-panel rounded-3xl p-6 flex flex-col justify-between hover:border-accent/60 transition-all border border-slate-200/90 dark:border-white/20 shadow-lg shadow-slate-200/60 dark:shadow-black/40 bg-white/95 dark:bg-[#0D1F38]/95 backdrop-blur-2xl group space-y-5 ${isPast ? 'opacity-80' : ''}`}
+              >
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full capitalize ${getStatusBadge(effectiveStatus)}`}>
+                        {effectiveStatus}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-accent/15 text-accent border border-accent/20">
+                        {event.campus || 'GG Campus'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-accent font-semibold flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      {(event.committees || []).length} Committees
+                    </span>
+                  </div>
+
+                  {(event.approvalStatus === 'pending_create' || event.approvalStatus === 'pending_edit' || event.approvalStatus === 'pending_delete') && canSeeApprovalMeta(event) && (
+                    <div className={`flex items-center justify-between gap-2 p-2.5 border rounded-xl text-[11px] ${event.approvalStatus === 'pending_delete' ? 'bg-danger/10 border-danger/25' : 'bg-warning/10 border-warning/25'}`}>
+                      <div className={`flex items-center gap-1.5 font-semibold ${event.approvalStatus === 'pending_delete' ? 'text-danger' : 'text-warning'}`}>
+                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {event.approvalStatus === 'pending_delete' ? 'Deletion awaiting approval' : event.approvalStatus === 'pending_edit' ? 'Edit awaiting approval' : 'Awaiting approval'}
+                          {event.submittedBy ? ` from ${event.submittedBy === user?.name ? 'you' : event.submittedBy}` : ''}
+                        </span>
+                      </div>
+                      {canApprovePendingEvent(event, user) && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleApproveEvent(event.id)}
+                            className="p-1 hover:bg-success/15 rounded-md text-success cursor-pointer"
+                            title="Approve"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setRejectingEventId(event.id)}
+                            className="p-1 hover:bg-danger/15 rounded-md text-danger cursor-pointer"
+                            title="Reject"
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {event.approvalStatus === 'rejected' && canSeeApprovalMeta(event) && (
+                    <div className="flex items-center gap-1.5 p-2.5 bg-danger/10 border border-danger/25 rounded-xl text-[11px] text-danger font-semibold">
+                      <Ban className="h-3.5 w-3.5 shrink-0" />
+                      <span>Rejected by {event.decidedBy || 'approver'}{event.rejectionReason ? `: ${event.rejectionReason}` : ''}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Link 
+                      href={`/dashboard/events/${event.id}`}
+                      className="font-bold text-base text-theme-text-primary hover:text-accent transition-colors leading-snug block"
+                    >
+                      {event.title}
+                    </Link>
+                    <p className="text-xs text-theme-text-secondary line-clamp-2 leading-relaxed">
+                      {event.description || 'No description provided.'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 text-xs text-theme-text-secondary pt-1">
+                    <div className="flex items-center gap-1.5 text-[11px]">
+                      <Calendar className="h-3.5 w-3.5 text-accent" />
+                      <span className={event.datesTBD ? 'text-warning font-semibold' : ''}>{formatEventDateRange(event)}</span>
+                    </div>
+                    {event.location && (
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <MapPin className="h-3.5 w-3.5 text-warning" />
+                        <span className="truncate">{event.location}</span>
+                      </div>
+                    )}
+                    {(() => {
+                      const allSponsors = getEventSponsors(event.id);
+                      const spTotal = getEventSponsorTotal(event);
+                      if (allSponsors.length === 0) return null;
+                      return (
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          <Handshake className="h-3.5 w-3.5 text-emerald-400" />
+                          <span className="truncate">
+                            🤝 {allSponsors.map((s) => s.name).join(', ')} — ₹{spTotal.toLocaleString()}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div className="border-t border-theme-border/20 pt-4 flex items-center justify-between text-xs">
+                  <Link
+                    href={`/dashboard/events/${event.id}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:text-primary-light transition-all"
+                  >
+                    <span>Event Workspace</span>
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  
+                  {(canEditEvent(user) || canDeleteEvent(user)) && (
+                    <div className="flex items-center gap-1">
+                      {canEditEvent(user) && (
+                        <button
+                          onClick={() => handleOpenEdit(event)}
+                          className="p-1.5 hover:bg-theme-border/30 rounded-lg transition-all text-theme-text-secondary hover:text-accent cursor-pointer"
+                          title="Edit Event Settings"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {canDeleteEvent(user) && event.approvalStatus !== 'pending_delete' && (
+                        <button
+                          onClick={() => setDeletingEventId(event.id)}
+                          className="p-1.5 hover:bg-danger/10 rounded-lg transition-all text-danger cursor-pointer"
+                          title="Delete Event"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create / Edit Event Modal */}
+      {(isCreateModalOpen || editingEvent) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="glass-panel w-full max-w-lg rounded-3xl p-6 flex flex-col space-y-5 relative border border-white/15 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-theme-text-primary">
+                {editingEvent ? 'Edit Event Details' : 'Create New Event'}
+              </h2>
+              <button 
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setEditingEvent(null);
+                }}
+                className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-theme-border/30 text-theme-text-secondary hover:text-theme-text-primary transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="p-3 bg-danger/10 border border-danger/25 rounded-xl text-danger text-xs flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEvent} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="block font-medium text-theme-text-secondary">Event Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. National Robotics Symposium 2026"
+                  className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block font-medium text-theme-text-secondary">Venue / Location</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Auditorium 2"
+                    className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block font-medium text-theme-text-secondary">Host Campus *</label>
+                  <select
+                    value={campus || 'GG Campus'}
+                    onChange={(e) => setCampus(e.target.value as any)}
+                    className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent font-semibold text-accent"
+                  >
+                    <option value="GG Campus">GG Campus</option>
+                    <option value="RTC Campus">RTC Campus</option>
+                    <option value="Both Campuses">Both Campuses</option>
+                  </select>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer font-medium text-theme-text-primary">
+                <input
+                  type="checkbox"
+                  checked={datesTBD}
+                  onChange={(e) => setDatesTBD(e.target.checked)}
+                  className="accent-accent"
+                />
+                Dates To Be Decided
+              </label>
+
+              {!datesTBD && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block font-medium text-theme-text-secondary">Start Date *</label>
+                    <input
+                      type="date"
+                      required={!datesTBD}
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block font-medium text-theme-text-secondary">End Date *</label>
+                    <input
+                      type="date"
+                      required={!datesTBD}
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="block font-medium text-theme-text-secondary">Event Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as EventItem['status'])}
+                  className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent"
+                >
+                  <option value="planned">Planned</option>
+                  <option value="active">Active / In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+
+              <div className="space-y-2 border-t border-theme-border/30 pt-3">
+                <div className="flex items-center justify-between">
+                  <label className="font-medium text-theme-text-secondary flex items-center gap-1.5">
+                    <Handshake className="h-3.5 w-3.5" /> Sponsors (optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addSponsorRow}
+                    className="text-accent font-semibold flex items-center gap-1 hover:underline cursor-pointer text-[11px]"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add Sponsor
+                  </button>
+                </div>
+                <p className="text-[11px] text-theme-text-secondary">
+                  In the Budget module, a sponsor's contribution is used up first — the Centre's budget only covers what's left.
+                  Amount can be added now or later, once confirmed.
+                </p>
+                {sponsors.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={s.name}
+                      onChange={(e) => updateSponsorRow(s.id, { name: e.target.value })}
+                      placeholder="Sponsor name"
+                      className="flex-1 px-3 py-2 bg-theme-background/30 border border-theme-card-border rounded-lg text-theme-text-primary text-xs focus:outline-none focus:border-accent"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={s.amount ?? ''}
+                      onChange={(e) => updateSponsorRow(s.id, { amount: e.target.value ? Number(e.target.value) : undefined })}
+                      placeholder="Amount (₹) — TBD"
+                      className="w-40 px-3 py-2 bg-theme-background/30 border border-theme-card-border rounded-lg text-theme-text-primary text-xs font-mono focus:outline-none focus:border-accent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSponsorRow(s.id)}
+                      className="p-1.5 text-danger hover:bg-danger/10 rounded-lg cursor-pointer shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block font-medium text-theme-text-secondary">Description / Objectives</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Outline key targets, attendee capacity, and schedule..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-accent hover:bg-primary-light text-white font-semibold rounded-xl transition-all shadow-md shadow-accent/15 cursor-pointer mt-4"
+              >
+                {editingEvent ? 'Save Event Updates' : 'Create Event & Initialize Sub-Committees'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deletingEventId)}
+        title="Delete Event"
+        message="Are you sure you want to delete this event? All sub-committees and linked event deliverables will be removed."
+        confirmLabel="Delete Event"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeletingEventId(null)}
+      />
+
+      {/* Reject Pending Approval Modal */}
+      {rejectingEventId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="glass-panel w-full max-w-md rounded-3xl p-6 flex flex-col space-y-4 relative border border-white/15 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-theme-text-primary flex items-center gap-2">
+                <Ban className="h-4.5 w-4.5 text-danger" />
+                Reject Submission
+              </h2>
+              <button
+                onClick={() => { setRejectingEventId(null); setRejectionReasonInput(''); }}
+                className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-theme-border/30 text-theme-text-secondary hover:text-theme-text-primary transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <label className="block font-medium text-theme-text-secondary">Reason (optional)</label>
+              <textarea
+                value={rejectionReasonInput}
+                onChange={(e) => setRejectionReasonInput(e.target.value)}
+                rows={3}
+                placeholder="Let the submitter know why this was rejected..."
+                className="w-full px-4 py-2.5 bg-theme-background/30 border border-theme-card-border rounded-xl text-theme-text-primary focus:outline-none focus:border-accent resize-none"
+              />
+            </div>
+            <button
+              onClick={handleConfirmReject}
+              className="w-full py-3 bg-danger hover:bg-danger/90 text-white font-semibold text-xs rounded-xl transition-all shadow-md cursor-pointer"
+            >
+              Confirm Rejection
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

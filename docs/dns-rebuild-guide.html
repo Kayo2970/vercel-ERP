@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Full DNS Rebuild &amp; Mail Verification — leadsnextgencentre.online</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #16213a;
+    --panel-border: #26304a;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent: #38bdf8;
+    --accent-soft: rgba(56,189,248,0.12);
+    --warn: #fbbf24;
+    --warn-soft: rgba(251,191,36,0.1);
+    --danger: #f87171;
+    --danger-soft: rgba(248,113,113,0.1);
+    --good: #34d399;
+    --good-soft: rgba(52,211,153,0.1);
+    --code-bg: #0b1120;
+    --code-border: #1e293b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 20px; }
+  .toc {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px;
+    padding: 16px 20px; margin-bottom: 28px; font-size: 0.85rem;
+  }
+  .toc h3 { margin: 0 0 10px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc li { margin-bottom: 6px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .step {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+    padding: 22px 24px; margin-bottom: 20px; scroll-margin-top: 16px;
+  }
+  .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .step-num {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem; border: 1px solid rgba(56,189,248,0.3);
+  }
+  .step h2 { font-size: 1.05rem; margin: 0; }
+  .step p { color: var(--text-dim); font-size: 0.9rem; margin: 8px 0; }
+  .step ul, .step ol.plain { color: var(--text-dim); font-size: 0.9rem; padding-left: 20px; margin: 8px 0; }
+  .step ul li, .step ol.plain li { margin-bottom: 6px; }
+  .callout {
+    border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin: 10px 0;
+    background: var(--warn-soft); border: 1px solid rgba(251,191,36,0.3); color: #fde68a;
+  }
+  .callout.danger { background: var(--danger-soft); border-color: rgba(248,113,113,0.35); color: #fecaca; }
+  .callout.good { background: var(--good-soft); border-color: rgba(52,211,153,0.3); color: #a7f3d0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.82rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+  th { color: var(--text-dim); font-weight: 600; }
+  td code, th code { font-size: 0.8rem; word-break: normal; white-space: nowrap; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg); border: 1px solid var(--code-border);
+    padding: 2px 6px; border-radius: 6px; color: #7dd3fc; word-break: break-all;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--code-border);
+    border-radius: 10px; padding: 14px 16px; overflow-x: auto;
+    font-size: 0.78rem; line-height: 1.5; position: relative;
+  }
+  pre code { background: none; border: none; padding: 0; color: #cbd5e1; white-space: pre; word-break: normal; }
+  .copy-btn {
+    position: absolute; top: 10px; right: 10px;
+    background: var(--panel); border: 1px solid var(--panel-border); color: var(--text-dim);
+    font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: inherit;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .copy-btn.copied { color: var(--good); border-color: var(--good); }
+  .row-copy {
+    background: none; border: 1px solid var(--panel-border); color: var(--text-dim);
+    font-size: 0.68rem; padding: 2px 8px; border-radius: 5px; cursor: pointer; font-family: inherit;
+    margin-left: 6px; white-space: nowrap;
+  }
+  .row-copy:hover { color: var(--accent); border-color: var(--accent); }
+  .row-copy.copied { color: var(--good); border-color: var(--good); }
+  .badge {
+    display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); margin-left: 6px;
+  }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Full DNS Rebuild &amp; Mail Verification</h1>
+  <div class="subtitle">leadsnextgencentre.online &middot; delete everything, rebuild clean, then verify end-to-end</div>
+
+  <div class="toc">
+    <h3>Steps</h3>
+    <ol>
+      <li><a href="#step1">Delete every existing DNS record (except NS/SOA)</a></li>
+      <li><a href="#step2">Add the 11 replacement records</a></li>
+      <li><a href="#step3">Fix the PTR (reverse-DNS) record</a></li>
+      <li><a href="#step4">Wait for propagation, then verify each record is live</a></li>
+      <li><a href="#step5">Confirm the app's Email Management settings match</a></li>
+      <li><a href="#step6">Test send, and how to read the result</a></li>
+      <li><a href="#step7">What's left after all of this</a></li>
+    </ol>
+  </div>
+
+  <div class="step" id="step1">
+    <div class="step-header"><div class="step-num">1</div><h2>Delete every existing DNS record (except NS/SOA)</h2></div>
+    <p>Go to <strong>hPanel &rarr; Domains &rarr; leadsnextgencentre.online &rarr; DNS/Nameservers &rarr; DNS Zone Editor</strong>. Click the trash icon on every row <strong>except</strong> the two <code>NS</code> rows (<code>aster.dns-parking.com</code>, <code>helios.dns-parking.com</code>) and the <code>SOA</code> record if one is shown separately.</p>
+    <div class="callout danger">Do NOT delete the <code>NS</code> records. Those make the domain resolve at all — deleting them takes the whole domain offline, not just mail. Everything else (both broken and previously-correct rows) should go, so you're building from a genuinely clean slate.</div>
+  </div>
+
+  <div class="step" id="step2">
+    <div class="step-header"><div class="step-num">2</div><h2>Add the 11 replacement records</h2></div>
+    <p>Add these one at a time using the normal "Add Record" form. Type and Name go in their own fields; Content is the whole value pasted into the content/value field. Priority only applies to the MX record.</p>
+    <table>
+      <tr><th>Type</th><th>Name</th><th>Content</th><th>Priority</th></tr>
+      <tr><td>A</td><td><code>@</code></td><td><code id="r1">187.52.121.165</code><button class="row-copy" onclick="copyBlock('r1', this)">Copy</button></td><td>—</td></tr>
+      <tr><td>A</td><td><code>www</code></td><td><code id="r2">187.52.121.165</code><button class="row-copy" onclick="copyBlock('r2', this)">Copy</button></td><td>—</td></tr>
+      <tr><td>A</td><td><code>mail</code></td><td><code id="r3">187.52.121.165</code><button class="row-copy" onclick="copyBlock('r3', this)">Copy</button></td><td>—</td></tr>
+      <tr><td>AAAA</td><td><code>@</code></td><td><code id="r4">2a02:4780:5e:a87a::1</code><button class="row-copy" onclick="copyBlock('r4', this)">Copy</button></td><td>—</td></tr>
+      <tr><td>AAAA</td><td><code>www</code></td><td><code id="r5">2a02:4780:5e:a87a::1</code><button class="row-copy" onclick="copyBlock('r5', this)">Copy</button></td><td>—</td></tr>
+      <tr><td>AAAA</td><td><code>mail</code></td><td><code id="r6">2a02:4780:5e:a87a::1</code><button class="row-copy" onclick="copyBlock('r6', this)">Copy</button></td><td>—</td></tr>
+      <tr><td>MX</td><td><code>@</code></td><td><code id="r7">mail.leadsnextgencentre.online</code><button class="row-copy" onclick="copyBlock('r7', this)">Copy</button></td><td><code>10</code></td></tr>
+      <tr><td>TXT</td><td><code>@</code></td><td>see SPF block below &darr;</td><td>—</td></tr>
+      <tr><td>TXT</td><td><code>leads._domainkey</code></td><td>see DKIM block below &darr;</td><td>—</td></tr>
+      <tr><td>TXT</td><td><code>_dmarc</code></td><td><code id="r8">v=DMARC1; p=none; rua=mailto:info@leadsnextgencentre.online</code><button class="row-copy" onclick="copyBlock('r8', this)">Copy</button></td><td>—</td></tr>
+      <tr><td>TXT</td><td><code>default._bimi</code></td><td><code id="r9">v=BIMI1; l=https://leadsnextgencentre.online/bimi-logo.svg;</code><button class="row-copy" onclick="copyBlock('r9', this)">Copy</button></td><td>—</td></tr>
+    </table>
+
+    <p>SPF TXT value (paste as the <code>@</code> TXT record's content, whole thing as one value):</p>
+    <pre><code id="spf-txt">v=spf1 ip4:187.52.121.165 ip6:2a02:4780:5e:a87a::1 include:_spf.hostinger.com ~all</code><button class="copy-btn" onclick="copyBlock('spf-txt', this)">Copy</button></pre>
+
+    <p>DKIM TXT value (paste as the <code>leads._domainkey</code> TXT record's content — this is the key you already generated and saved into the app's DKIM Signing field):</p>
+    <pre><code id="dkim-txt">v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyfPK7teSZFylxJIhGWRFJ2gnTSlCEWkXqwBktvCtZpXBERL6MQTxD0sVNGp80kQDYqwBhb5mCsNesGqo2xd/BNaOo6XkS0CpBj6JxtLv84jgnzJIxcjOzl/GC5o3Gyn7TuYEPvncmZA6MdXaIKauI4IkcX0qyVZb46d6d0uoNQHQmtX+LT0hpGIw2JEUwbtAkGWHQZU92gHXVV6RXY+EJTAciSWUEtX+6Sra3dKRelJC5fOset3iUmGHhRr2a4k3rIyv0Ao1pZjT0Fr00tDNHcmRLp/KJBkBB0W3Y7fPYoLYKdu1XPKS6Esin6bd4/VcFtbMKLqeeggxFGw2LWcW1QIDAQAB</code><button class="copy-btn" onclick="copyBlock('dkim-txt', this)">Copy</button></pre>
+
+    <div class="callout">11 records total. Double-check there is exactly <strong>one</strong> TXT record at <code>@</code> starting with <code>v=spf1</code> when you're done — a second one (the exact bug that caused the original rejection) silently breaks SPF for every receiver.</div>
+  </div>
+
+  <div class="step" id="step3">
+    <div class="step-header"><div class="step-num">3</div><h2>Fix the PTR (reverse-DNS) record <span class="badge warn">not in the DNS Zone Editor</span></h2></div>
+    <p>This one lives at the VPS/network level, not in the domain's DNS zone. Go to <strong>hPanel &rarr; VPS &rarr; your VPS &rarr; Network settings / rDNS</strong> and set the PTR for <code>187.52.121.165</code> to <code>mail.leadsnextgencentre.online</code>.</p>
+    <p>If you don't see that option, open a Hostinger support chat and ask directly: <em>"Please set the PTR record for 187.52.121.165 to mail.leadsnextgencentre.online."</em></p>
+    <div class="callout danger">Don't skip this. It's still wrong right now (currently <code>srv1915749.hstgr.cloud</code>) and is one of the most common reasons big providers reject mail outright, independent of SPF/DKIM being correct.</div>
+  </div>
+
+  <div class="step" id="step4">
+    <div class="step-header"><div class="step-num">4</div><h2>Wait for propagation, then verify each record is live</h2></div>
+    <p>Give it 15–30 minutes (the TXT records have a 4-hour TTL, but changes are usually visible well before that expires). Check from your VPS or any terminal — these query Google's public DNS directly, bypassing any local cache:</p>
+    <pre><code id="verify-cmds">curl -s "https://dns.google/resolve?name=leadsnextgencentre.online&type=TXT"
+curl -s "https://dns.google/resolve?name=leads._domainkey.leadsnextgencentre.online&type=TXT"
+curl -s "https://dns.google/resolve?name=_dmarc.leadsnextgencentre.online&type=TXT"
+curl -s "https://dns.google/resolve?name=leadsnextgencentre.online&type=AAAA"
+curl -s "https://dns.google/resolve?name=leadsnextgencentre.online&type=MX"</code><button class="copy-btn" onclick="copyBlock('verify-cmds', this)">Copy</button></pre>
+    <p>For the first command, confirm the <code>Answer</code> array has exactly <strong>one</strong> entry and it starts with <code>v=spf1</code>. For the DKIM one, confirm the key matches what you pasted (compare the first ~30 characters). For AAAA, confirm it returns <code>2a02:4780:5e:a87a::1</code>.</p>
+    <p>Check the PTR fix separately:</p>
+    <pre><code id="verify-ptr">host 187.52.121.165</code><button class="copy-btn" onclick="copyBlock('verify-ptr', this)">Copy</button></pre>
+    <p>Should return <code>mail.leadsnextgencentre.online</code>, not <code>srv1915749.hstgr.cloud</code>.</p>
+  </div>
+
+  <div class="step" id="step5">
+    <div class="step-header"><div class="step-num">5</div><h2>Confirm the app's Email Management settings match</h2></div>
+    <p>Go to <strong>Dashboard &rarr; Email Management &rarr; SMTP Configuration</strong> in the app itself and confirm every field lines up with what's now in DNS:</p>
+    <table>
+      <tr><th>Field</th><th>Should be</th></tr>
+      <tr><td>Provider</td><td>Direct Send (Built-in) — rocket icon selected</td></tr>
+      <tr><td>HELO Hostname</td><td><code>mail.leadsnextgencentre.online</code></td></tr>
+      <tr><td>Sender Email Address</td><td><code>info@leadsnextgencentre.online</code> (must be on this domain)</td></tr>
+      <tr><td>DKIM Domain</td><td><code>leadsnextgencentre.online</code></td></tr>
+      <tr><td>DKIM Selector</td><td><code>leads</code></td></tr>
+      <tr><td>DKIM Private Key</td><td>The key you generated earlier today — already pasted in, per your last confirmation</td></tr>
+    </table>
+    <p>Click <strong>Save SMTP Credentials</strong> even if nothing changed here, just to be certain the save actually went through.</p>
+  </div>
+
+  <div class="step" id="step6">
+    <div class="step-header"><div class="step-num">6</div><h2>Test send, and how to read the result</h2></div>
+    <p>In the same screen's <strong>Connection Diagnostics &amp; Test</strong> panel, put in a Gmail address you personally control (Gmail is the strictest of the major providers — if it passes there, everything else is very likely fine too), then click <strong>Test Connection &amp; Send Email</strong>.</p>
+    <ul>
+      <li><strong>Success message with no bounce</strong> — check the actual inbox (and spam folder) a minute or two later. The dashboard confirming "sent" only means the SMTP handoff worked, not that it landed in the inbox.</li>
+      <li><strong>Still bounces with an SPF/DKIM authentication error</strong> — DNS likely hasn't propagated yet everywhere. Re-run the verification commands from Step 4; if they show correct values, wait longer and retry the test send.</li>
+      <li><strong>Bounces with a different error</strong> — copy the exact bounce text; it usually names the specific problem directly (rejected recipient, connection refused, etc).</li>
+    </ul>
+  </div>
+
+  <div class="step" id="step7">
+    <div class="step-header"><div class="step-num">7</div><h2>What's left after all of this</h2></div>
+    <p>Once a test send to Gmail lands cleanly in the inbox, the technical setup is done. Two things worth knowing beyond that:</p>
+    <ul>
+      <li><strong>Sending reputation takes a little time to build.</strong> This domain/IP combination is effectively starting fresh after the reformat and DNS reset — even with everything configured correctly, the first handful of emails from a "new" sending identity can occasionally land in spam at some providers until they've seen enough legitimate volume to trust it. This isn't a misconfiguration; it resolves itself with normal use over the next several days.</li>
+      <li><strong>BIMI (the sender logo) won't visually show up yet</strong>, even though the DNS record is in place — it only activates once DMARC is enforced at <code>p=quarantine</code> or <code>p=reject</code>, and yours is intentionally <code>p=none</code> (monitor-only) for now. Tightening that is a separate, deliberate decision to make later once you've confirmed mail authenticates cleanly for a while — don't rush it, since a misconfigured enforced DMARC can cause your own legitimate mail to get rejected.</li>
+    </ul>
+    <div class="callout good">That's the complete list — nothing else is required for the app to send mail correctly once Steps 1–6 are done.</div>
+  </div>
+</div>
+
+<script>
+function copyBlock(id, btn) {
+  const text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+  });
+}
+</script>
+</body>
+</html>

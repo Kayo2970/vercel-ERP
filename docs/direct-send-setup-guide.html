@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Direct Send SMTP Setup — leadsnextgencentre.online</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #16213a;
+    --panel-border: #26304a;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent: #38bdf8;
+    --accent-soft: rgba(56,189,248,0.12);
+    --warn: #fbbf24;
+    --warn-soft: rgba(251,191,36,0.1);
+    --good: #34d399;
+    --code-bg: #0b1120;
+    --code-border: #1e293b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 {
+    font-size: 1.7rem;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 32px; }
+  .step {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border: 1px solid rgba(56,189,248,0.3);
+  }
+  .step h2 { font-size: 1.05rem; margin: 0; }
+  .step p { color: var(--text-dim); font-size: 0.9rem; margin: 8px 0; }
+  .callout {
+    background: var(--warn-soft);
+    border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: #fde68a;
+    margin: 10px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.82rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--panel-border);
+    vertical-align: top;
+  }
+  th { color: var(--text-dim); font-weight: 600; }
+  td code, th code { font-size: 0.8rem; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    padding: 2px 6px;
+    border-radius: 6px;
+    color: #7dd3fc;
+    word-break: break-all;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    position: relative;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #cbd5e1;
+    white-space: pre;
+    word-break: normal;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .copy-btn.copied { color: var(--good); border-color: var(--good); }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Direct Send SMTP Setup</h1>
+  <div class="subtitle">leadsnextgencentre.online &middot; step-by-step, do these in order</div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <h2>Check outbound port 25 is open on the VPS</h2>
+    </div>
+    <p>This is the one thing that silently breaks everything else — many hosts block outbound port 25 by default to fight spam, and direct-send needs it (there's no alternate port for server-to-server mail delivery).</p>
+    <div class="callout">Open a Hostinger support ticket (or live chat) and ask: "Is outbound TCP port 25 open on my VPS at 187.52.121.165? If not, please unblock it for SMTP mail delivery." Do this before anything else — no point configuring DNS if port 25 is blocked.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <h2>Add DNS records in Hostinger hPanel</h2>
+    </div>
+    <p>Go to <strong>hPanel &rarr; Domains &rarr; leadsnextgencentre.online &rarr; DNS / Nameservers &rarr; DNS Zone Editor</strong>. Add these 5 records one at a time using the normal "Add Record" form. Your existing records (root A, NS, www) stay untouched — you're only adding new ones.</p>
+    <table>
+      <tr><th>Type</th><th>Name</th><th>Value / Priority</th></tr>
+      <tr><td>A</td><td><code>mail</code></td><td><code>187.52.121.165</code></td></tr>
+      <tr><td>MX</td><td><code>@</code></td><td><code>mail.leadsnextgencentre.online</code>, priority <code>10</code></td></tr>
+      <tr><td>TXT</td><td><code>@</code></td><td><code>v=spf1 mx ~all</code></td></tr>
+      <tr><td>TXT</td><td><code>leads._domainkey</code></td><td>see DKIM value below &darr;</td></tr>
+      <tr><td>TXT</td><td><code>_dmarc</code></td><td><code>v=DMARC1; p=none; rua=mailto:info@leadsnextgencentre.online</code></td></tr>
+    </table>
+    <p>DKIM TXT value — paste this whole thing as ONE value into the Hostinger form (it will handle the length itself, you don't need to split it):</p>
+    <pre><code id="dkim-txt">v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqORTGuHQsEOjPADu3j/SwRY6O58eG0pbZIcDcfAb8pSrLxmdh44/bjWvd2M68cYMJuioWIgH5d65i4a2jlOCDKL1K13FZ4pMzNKH8BTWlkgmQmTcMBQE1vmGP/RoJQW2mvuH1WkAXO6JObRYGed0o37BAX/LL4EUprQUaLC16kt1xolqgvN773Kyr0Yo8cl8L7dcfF1DHA0iB7cA9R+86n4ChDDIxYlSdogJijbfP9m0lZjKg03nXv6sQ4FmTMgsIHPE5TNR08yXEWHtuAellNuCGPEy4gAkgWmfQLBFncNT0ozKAJRvE/rc33lqoF0NgvZc7JeE3npcdnY40PunrQIDAQAB</code><button class="copy-btn" onclick="copyBlock('dkim-txt', this)">Copy</button></pre>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <h2>Set the PTR (reverse-DNS) record</h2>
+    </div>
+    <p>Your VPS's IP <code>187.52.121.165</code> needs to reverse-resolve to <code>mail.leadsnextgencentre.online</code>. This is set at the hosting/IP level, not in the domain's DNS zone.</p>
+    <p>Go to <strong>hPanel &rarr; VPS &rarr; your VPS &rarr; Network settings / rDNS</strong>. If you don't see the option, ask Hostinger support in the same ticket from step 1: "Please set the PTR record for 187.52.121.165 to mail.leadsnextgencentre.online."</p>
+    <div class="callout">Skipping this is the #1 reason direct-send mail gets rejected outright by big providers (especially Microsoft) — don't skip it even if it feels optional.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <h2>Deploy the updated code on your VPS</h2>
+    </div>
+    <p>SSH into your VPS and run:</p>
+    <pre><code id="deploy-cmd">cd /path/to/leads-dashboard
+git pull origin main
+npm install
+npm run build
+pm2 restart leads-dashboard</code><button class="copy-btn" onclick="copyBlock('deploy-cmd', this)">Copy</button></pre>
+    <p>Replace <code>/path/to/leads-dashboard</code> with wherever the app actually lives on the box.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <h2>Configure the Email settings in the dashboard</h2>
+    </div>
+    <p>You're already on the right screen (Email Management &rarr; SMTP Server Credentials tab, with the <strong>Direct Send (Built-in)</strong> card selected — the rocket icon). From here, do this in order:</p>
+    <ol style="color: var(--text-dim); font-size: 0.9rem; padding-left: 20px;">
+      <li style="margin-bottom: 8px;">In <strong>HELO Hostname *</strong> (currently empty, showing grey placeholder text "e.g. mail.leadsnextgencentre.cloud" — that's just a placeholder, not a real value), click in and type <code>mail.leadsnextgencentre.online</code></li>
+      <li style="margin-bottom: 8px;"><strong>Sender Display Name</strong> can stay as <code>LEADS Next Gen Centre</code> — no change needed.</li>
+      <li style="margin-bottom: 8px;"><strong>Sender Email Address *</strong> currently shows <code>leadsmsruasnextgencentre@gmail.com</code> — clear that and replace with <code>info@leadsnextgencentre.online</code>. This has to be on the same domain as the DKIM/SPF records or authentication won't line up.</li>
+      <li style="margin-bottom: 8px;">Click <strong>DKIM Signing (Advanced)</strong> to expand that section (it's currently collapsed with a down-arrow next to it).</li>
+      <li style="margin-bottom: 8px;">Fill in the three fields that appear — Domain, Selector, Private Key — using the table and key block below.</li>
+      <li style="margin-bottom: 8px;">Click <strong>Save SMTP Credentials</strong> (bottom-right of the form).</li>
+      <li>On the right panel, <strong>Test Recipient Email</strong> already has <code>kayo2970@gmail.com</code> filled in — leave it, then click <strong>Test Connection &amp; Send Email</strong> and check the result that appears below the button.</li>
+    </ol>
+    <table>
+      <tr><th>Field</th><th>Value</th></tr>
+      <tr><td>HELO Hostname</td><td><code>mail.leadsnextgencentre.online</code></td></tr>
+      <tr><td>Sender Email</td><td><code>info@leadsnextgencentre.online</code></td></tr>
+      <tr><td>DKIM Domain</td><td><code>leadsnextgencentre.online</code></td></tr>
+      <tr><td>DKIM Selector</td><td><code>leads</code></td></tr>
+    </table>
+    <p>DKIM Private Key — a real 2048-bit RSA key was generated for this domain and delivered to the Super User directly in chat (never written to disk in this repo, and never should be — anyone with this key could sign mail as this domain). If it needs regenerating, run:</p>
+    <pre><code id="dkim-gen">openssl genrsa -out dkim-private.pem 2048
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in dkim-private.pem -out dkim-private-pkcs8.pem
+openssl rsa -in dkim-private.pem -pubout -outform PEM -out dkim-public.pem</code><button class="copy-btn" onclick="copyBlock('dkim-gen', this)">Copy</button></pre>
+    <p>Paste <code>dkim-private-pkcs8.pem</code>'s contents into the dashboard's Private Key field, and derive the DNS TXT value from <code>dkim-public.pem</code> (strip the header/footer lines and concatenate the base64 body after <code>v=DKIM1; k=rsa; p=</code>).</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <h2>Optional: sender logo (BIMI) <span class="badge">not required to send mail</span></h2>
+    </div>
+    <p>The LEADS logo (converted from the SVG added to the repo) is published at <code>https://leadsnextgencentre.online/bimi-logo.svg</code> (<code>public/bimi-logo.svg</code>). To make it appear as the sender's profile icon in supporting mail clients, add one more DNS TXT record:</p>
+    <table>
+      <tr><th>Type</th><th>Name</th><th>Value</th></tr>
+      <tr><td>TXT</td><td><code>default._bimi</code></td><td><code>v=BIMI1; l=https://leadsnextgencentre.online/bimi-logo.svg;</code></td></tr>
+    </table>
+    <div class="callout">Two real limits, not bugs: (1) BIMI only activates once DMARC is enforced at <code>p=quarantine</code> or <code>p=reject</code> — it's currently <code>p=none</code> (monitor-only) on purpose, so the logo won't show until that's deliberately tightened after confirming mail authenticates cleanly for a while. (2) <strong>Gmail specifically requires a paid Verified Mark Certificate</strong> (~$1,300+/year, needs a registered trademark on the logo) to show the logo at all — without it, this only works in Yahoo Mail and a few smaller clients.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">7</div>
+      <h2>Wait for propagation, then test</h2>
+    </div>
+    <p>Give DNS 15&ndash;30 minutes to propagate. Then in the same Email settings page, use <strong>Test Connection &amp; Send Email</strong> — send to a Gmail address you personally control first, <em>before</em> trying an <code>@msruas.ac.in</code> address. Check whether it lands in inbox or spam, and share the result — the dashboard's diagnostic panel will show the raw SMTP response either way.</p>
+  </div>
+</div>
+
+<script>
+function copyBlock(id, btn) {
+  const text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+  });
+}
+</script>
+</body>
+</html>
