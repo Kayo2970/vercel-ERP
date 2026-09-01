@@ -75,7 +75,7 @@ export const RippleButton = React.forwardRef<HTMLButtonElement, RippleButtonProp
         ref={ref}
         disabled={disabled}
         onClick={handleClick}
-        className={`relative flex items-center justify-center overflow-hidden cursor-pointer rounded-2xl px-5 py-2.5 font-semibold transition-all select-none active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none ${className}`}
+        className={`relative flex items-center justify-center overflow-hidden cursor-pointer rounded-2xl px-5 py-2.5 font-semibold transition-all select-none active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-background disabled:opacity-50 disabled:pointer-events-none ${className}`}
         {...props}
       >
         <span className="relative z-10 flex items-center gap-2">{children}</span>
