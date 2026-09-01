@@ -7,7 +7,7 @@ import { createWorker, type Worker } from 'tesseract.js';
 
 const execFileAsync = promisify(execFile);
 
-const OCR_CACHE_DIR = path.join(process.cwd(), 'data', 'ocr-cache');
+const OCR_CACHE_DIR = process.env.VERCEL ? path.join('/tmp', 'data', 'ocr-cache') : path.join(process.cwd(), 'data', 'ocr-cache');
 
 let workerPromise: Promise<Worker> | null = null;
 async function getWorker(): Promise<Worker> {

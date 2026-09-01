@@ -14,7 +14,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'data', 'uploads');
+const UPLOADS_DIR = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'uploads') : (process.env.VERCEL ? path.join('/tmp', 'data', 'uploads') : path.join(process.cwd(), 'data', 'uploads'));
 
 /** Strip anything that isn't a safe filename character, keep it short. */
 function sanitizeFileName(name: string): string {

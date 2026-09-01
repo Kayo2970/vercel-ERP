@@ -20,7 +20,7 @@ import crypto from 'crypto';
 import { ZipArchive } from 'archiver';
 import AdmZip from 'adm-zip';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.DATA_DIR || (process.env.VERCEL ? path.join('/tmp', 'data') : path.join(process.cwd(), 'data'));
 const SALT_LEN = 16;
 const IV_LEN = 12;
 const KEY_LEN = 32; // AES-256

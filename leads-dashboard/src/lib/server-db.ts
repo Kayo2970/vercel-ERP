@@ -39,7 +39,7 @@ import {
   FEEDBACK_FORM_TEMPLATE_ID,
 } from './local-data';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.DATA_DIR || (process.env.VERCEL ? path.join('/tmp', 'data') : path.join(process.cwd(), 'data'));
 const LEGACY_DB_PATH = path.join(DATA_DIR, 'database.json');
 const RETIRED_LEGACY_DB_PATH = path.join(DATA_DIR, 'database.json.migrated');
 const META_PATH = path.join(DATA_DIR, '_meta.json');

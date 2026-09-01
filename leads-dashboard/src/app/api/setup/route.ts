@@ -9,24 +9,28 @@ const FALLBACK_KEY = 'LEADS_ERP_MASTER_SECRET_KEY_2026';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function writeEncryptionKeyToEnv(key: string) {
-  const envPath = path.join(process.cwd(), '.env');
-  const envExamplePath = path.join(process.cwd(), '.env.example');
+  try {
+    const envPath = path.join(process.cwd(), '.env');
+    const envExamplePath = path.join(process.cwd(), '.env.example');
 
-  if (!fs.existsSync(envPath)) {
-    if (fs.existsSync(envExamplePath)) {
-      fs.copyFileSync(envExamplePath, envPath);
-    } else {
-      fs.writeFileSync(envPath, '', 'utf-8');
+    if (!fs.existsSync(envPath)) {
+      if (fs.existsSync(envExamplePath)) {
+        fs.copyFileSync(envExamplePath, envPath);
+      } else {
+        fs.writeFileSync(envPath, '', 'utf-8');
+      }
     }
+    let content = fs.readFileSync(envPath, 'utf-8');
+    if (/^DATA_ENCRYPTION_KEY=.*$/m.test(content)) {
+      content = content.replace(/^DATA_ENCRYPTION_KEY=.*$/m, 'DATA_ENCRYPTION_KEY=' + key);
+    } else {
+      if (content.length && !content.endsWith('\n')) content += '\n';
+      content += '\nDATA_ENCRYPTION_KEY=' + key + '\n';
+    }
+    fs.writeFileSync(envPath, content, 'utf-8');
+  } catch (err: any) {
+    console.warn('[setup-api] Skipped writing .env on read-only serverless environment:', err?.message || err);
   }
-  let content = fs.readFileSync(envPath, 'utf-8');
-  if (/^DATA_ENCRYPTION_KEY=.*$/m.test(content)) {
-    content = content.replace(/^DATA_ENCRYPTION_KEY=.*$/m, 'DATA_ENCRYPTION_KEY=' + key);
-  } else {
-    if (content.length && !content.endsWith('\n')) content += '\n';
-    content += '\nDATA_ENCRYPTION_KEY=' + key + '\n';
-  }
-  fs.writeFileSync(envPath, content, 'utf-8');
 }
 
 /**

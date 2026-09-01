@@ -19,7 +19,7 @@ import { createWorker, type Worker } from 'tesseract.js';
 import nspell from 'nspell';
 import type { OcrScanResult, OcrScanIssue, OcrScanPageImage } from './local-data';
 
-const OCR_CACHE_DIR = path.join(process.cwd(), 'data', 'ocr-cache');
+const OCR_CACHE_DIR = process.env.VERCEL ? path.join('/tmp', 'data', 'ocr-cache') : path.join(process.cwd(), 'data', 'ocr-cache');
 const MAX_PDF_PAGES = 5;
 // tesseract.js only downloads the English traineddata (~4MB, from a public
 // CDN) the very first time a worker needs it, then writes it to `cachePath`
